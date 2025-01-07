@@ -5,6 +5,7 @@ _G.Discord_UserID = "" -- ID to ping on every execution, blank if no one wants t
 local whitelistedUserIDs = {
     4022084809,  -- Replace with actual user ID
     7528009702,  -- Replace with another actual user ID
+    5066750924,  -- Replace with another actual user ID
 }
 
 -- Function to check if the player is whitelisted
