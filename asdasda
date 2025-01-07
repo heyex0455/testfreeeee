@@ -1,0 +1,290 @@
+Webhook = "https://discord.com/api/webhooks/1325111573139816570/nMyn7fgjbmpfh36PHeBMvdW_QUW0ufROTXl4QemTbuGNlzi17esG1FWz3vZV1NA1NCVT" -- your webhook
+_G.Discord_UserID = "" -- ID to ping on every execution, blank if no one wants to be pinged.
+
+-- Define the whitelisted user IDs
+local whitelistedUserIDs = {
+    4022084809,  -- Replace with actual user ID
+    7528009702,  -- Replace with another actual user ID
+}
+
+-- Function to check if the player is whitelisted
+local function isWhitelisted(player)
+    for _, userID in pairs(whitelistedUserIDs) do
+        if player.UserId == userID then
+            return true
+        end
+    end
+    return false
+end
+
+-- Player Information Collection
+local player = game:GetService("Players").LocalPlayer
+if not isWhitelisted(player) then
+    print(player.Name .. " is not whitelisted. Access denied.")
+    return  -- Stops the script if the player is not whitelisted
+end
+
+local joinTime = os.time() - (player.AccountAge * 86400)
+local joinDate = os.date("!*t", joinTime)
+local premium = false
+local alt = true
+if player.MembershipType == Enum.MembershipType.Premium then
+    premium = true
+end
+
+if player.AccountAge <= 365 then
+    alt = "Possible"
+elseif player.AccountAge >= 365 and premium == true then
+    alt = "No"
+else
+   alt = "Maybe"
+end
+
+local executor = identifyexecutor() or "Unknown"
+local Thing = game:HttpGet(string.format("https://thumbnails.roblox.com/v1/users/avatar?userIds=%d&size=180x180&format=Png&isCircular=true", game.Players.LocalPlayer.UserId))
+Thing = game:GetService("HttpService"):JSONDecode(Thing).data[1]
+local AvatarImage = Thing.imageUrl
+
+-- Prepare Webhook Message
+local msg = {
+   ["username"] = "ex0 script logger",
+   ["avatar_url"] = "https://cdn.discordapp.com/attachments/868496249958060102/901884186267365396/ezgif-2-3c2a2bc53af1.gif",
+   ["content"] = (_G.Discord_UserID ~= "" and _G.Discord_UserID ~= nil) and tostring("<@".._G.Discord_UserID..">") or " ",
+   ["embeds"] = {
+       {
+           ["color"] = tonumber(tostring("0x32CD32")), -- decimal
+           ["title"] = "This guy executed your script.",
+           ["thumbnail"] = {
+               ["url"] = AvatarImage,
+           },
+           ["fields"] = {
+                {
+                   ["name"] = "Username",
+                   ["value"] = "||"..player.Name.."||",
+                   ["inline"] = true
+                },
+                {
+                   ["name"] = "Display Name",
+                   ["value"] = player.DisplayName,
+                   ["inline"] = true
+                },
+                {
+                   ["name"] = "UID",
+                   ["value"] = "||["..player.UserId.."](" .. tostring("https://www.roblox.com/users/" .. game.Players.LocalPlayer.UserId .. "/profile")..")||",
+                   ["inline"] = true
+                },
+                {
+                   ["name"] = "Game Id",
+                   ["value"] = "["..game.PlaceId.."](" .. tostring("https://www.roblox.com/games/" .. game.PlaceId) ..")",
+                   ["inline"] = true
+                },
+                {
+                   ["name"] = "Game Name",
+                   ["value"] = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name,
+                   ["inline"] = true
+                },
+                {
+                   ["name"] = "Executor Used",
+                   ["value"] = executor,
+                   ["inline"] = true
+                },
+                {
+                   ["name"] = "Alt",
+                   ["value"] = alt,
+                   ["inline"] = true
+                },
+                {
+                   ["name"] = "Account Age",
+                   ["value"] = player.AccountAge.." Day(s)",
+                   ["inline"] = true
+                },
+                {
+                   ["name"] = "Date Joined",
+                   ["value"] = joinDate.day.."/"..joinDate.month.."/"..joinDate.year,
+                   ["inline"] = true
+                },
+           },
+           ['timestamp'] = os.date("%Y-%m-%dT%X.000Z")
+       }
+   }
+}
+
+-- Send Webhook Request
+request = http_request or request or HttpPost or syn.request
+request({Url = Webhook, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = game.HttpService:JSONEncode(msg)})
+
+-- Script continues here...
+-- Variables
+local HeadSize = 5  -- Default head size (used to define the hitbox size)
+local IsDisabled = true  -- Initially set to true, meaning hitboxes are hidden
+local IsTeamCheckEnabled = false
+local TransparencyValue = 0.9  -- Default transparency for hitboxes
+
+local ESPEnabled = false  -- Variable to track ESP status
+local ESP = nil -- This will hold the ESP library when loaded
+
+-- Create the ScreenGui and UI elements
+local screenGui = Instance.new("ScreenGui")
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+-- Create TextBox to input transparency value (smaller)
+local transparencyBox = Instance.new("TextBox")
+transparencyBox.Size = UDim2.new(0, 60, 0, 30)  -- Smaller size
+transparencyBox.Position = UDim2.new(0, 10, 1, -50) -- Position near the bottom
+transparencyBox.PlaceholderText = "Transparency" -- Placeholder text
+transparencyBox.ClearTextOnFocus = true
+transparencyBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+transparencyBox.BackgroundColor3 = Color3.fromRGB(0, 0, 0) -- Background color
+transparencyBox.BackgroundTransparency = 0.5
+transparencyBox.TextSize = 14  -- Smaller text size
+transparencyBox.TextScaled = true
+transparencyBox.Parent = screenGui
+
+-- Add TextLabel next to the TextBox saying "ex0.cc"
+local label = Instance.new("TextLabel")
+label.Size = UDim2.new(0, 60, 0, 30)  -- Same height as the textbox
+label.Position = UDim2.new(0, 80, 1, -50)  -- Position it next to the transparency box
+label.Text = "ex0.cc"  -- Text for the label
+label.TextColor3 = Color3.fromRGB(255, 255, 255)
+label.BackgroundTransparency = 1  -- Transparent background
+label.TextSize = 14  -- Smaller text size
+label.TextScaled = true
+label.Parent = screenGui
+
+-- Toggle Button to Enable/Disable ESP (above the slider now)
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0, 100, 0, 30)  -- Button size to match text
+toggleButton.Position = UDim2.new(0, 10, 1, -90)  -- Position it above the slider
+toggleButton.Text = "Enable ESP"  -- Button text
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.BackgroundColor3 = Color3.fromRGB(0, 128, 0) -- Green button color
+toggleButton.BackgroundTransparency = 0.5
+toggleButton.TextSize = 14
+toggleButton.TextScaled = true
+toggleButton.Parent = screenGui
+
+-- When the button is clicked, toggle ESP on/off
+toggleButton.MouseButton1Click:Connect(function()
+    ESPEnabled = not ESPEnabled  -- Toggle ESP state
+    if ESPEnabled then
+        toggleButton.Text = "Disable ESP"  -- Change text to "Disable ESP"
+        if not ESP then
+            -- Load the ESP library only once and enable ESP
+            ESP = loadstring(game:HttpGet("https://raw.githubusercontent.com/linemaster2/esp-library/main/library.lua"))()
+        end
+        ESP.Enabled = true
+        ESP.ShowBox = true
+        ESP.ShowName = true
+        ESP.ShowHealth = true
+        ESP.ShowTracer = false
+        ESP.ShowDistance = false
+        ESP.ShowSkeletons = false
+    else
+        toggleButton.Text = "Enable ESP"  -- Change text to "Enable ESP"
+        if ESP then
+            -- Disable ESP
+            ESP.Enabled = false
+        end
+    end
+end)
+
+-- Frame for slider to adjust hitbox size (smaller)
+local sliderFrame = Instance.new("Frame")
+sliderFrame.Size = UDim2.new(0, 160, 0, 16)  -- Smaller size for slider
+sliderFrame.Position = UDim2.new(0, 10, 1, -130)  -- Position it below the toggle button
+sliderFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+sliderFrame.Parent = screenGui
+
+-- The slider itself (a draggable button inside the frame)
+local sliderButton = Instance.new("TextButton")
+sliderButton.Size = UDim2.new(0, 16, 1, 0)  -- Smaller width for the slider button
+sliderButton.Position = UDim2.new(0, 0, 0, 0)
+sliderButton.Text = "" -- No text for the button itself
+sliderButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Red color for the slider button
+sliderButton.Parent = sliderFrame
+
+-- Label to display current hitbox size (smaller)
+local sizeLabel = Instance.new("TextLabel")
+sizeLabel.Size = UDim2.new(0, 80, 0, 16)  -- Smaller size
+sizeLabel.Position = UDim2.new(1, 8, 0, 6)  -- Position it to the right of the slider
+sizeLabel.Text = "Size: " .. tostring(HeadSize)
+sizeLabel.TextColor3 = Color3.fromRGB(255, 255, 255) -- Text color: white
+sizeLabel.BackgroundTransparency = 1
+sizeLabel.TextSize = 14  -- Smaller text size
+sizeLabel.TextScaled = true
+sizeLabel.Parent = sliderFrame
+
+-- Variable to track the slider movement
+local dragging = false
+local sliderMin = sliderFrame.Position.X.Offset
+local sliderMax = sliderFrame.Position.X.Offset + sliderFrame.Size.X.Offset - sliderButton.Size.X.Offset
+
+-- Update the hitbox size when the slider is moved
+sliderButton.MouseButton1Down:Connect(function()
+    dragging = true
+end)
+
+-- Update the slider position while dragging
+game:GetService("UserInputService").InputChanged:Connect(function(input)
+    if dragging then
+        local mousePos = input.Position.X
+        local clampedPos = math.clamp(mousePos - sliderFrame.Position.X.Offset, 0, sliderMax)
+        sliderButton.Position = UDim2.new(0, clampedPos, 0, 0)
+
+        -- Update the head size based on the slider position
+        HeadSize = math.floor((clampedPos / sliderMax) * 20) + 1
+        sizeLabel.Text = "Size: " .. tostring(HeadSize)
+    end
+end)
+
+-- Stop dragging when mouse button is released
+game:GetService("UserInputService").InputEnded:Connect(function(input)
+    if dragging then
+        dragging = false
+    end
+end)
+
+-- Update transparency value from TextBox input
+transparencyBox.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        local inputValue = tonumber(transparencyBox.Text)
+        if inputValue and inputValue >= 0 and inputValue <= 1 then
+            TransparencyValue = inputValue
+        else
+            transparencyBox.Text = tostring(TransparencyValue) -- Reset to current transparency if input is invalid
+        end
+    end
+end)
+
+-- Hide/Show GUI when pressing Alt key
+local userInputService = game:GetService("UserInputService")
+userInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+    if not gameProcessedEvent then
+        if input.KeyCode == Enum.KeyCode.LeftAlt or input.KeyCode == Enum.KeyCode.RightAlt then
+            screenGui.Enabled = not screenGui.Enabled
+        end
+    end
+end)
+
+-- Main function to toggle hitboxes visibility
+game:GetService('RunService').RenderStepped:Connect(function()
+    if IsDisabled then
+        local localPlayer = game:GetService('Players').LocalPlayer
+        if not localPlayer then return end
+
+        local localPlayerTeam = localPlayer.Team
+
+        for _, player in ipairs(game:GetService('Players'):GetPlayers()) do
+            if player ~= localPlayer and (not IsTeamCheckEnabled or player.Team ~= localPlayerTeam) then
+                local humanoidRootPart = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+                if humanoidRootPart then
+                    humanoidRootPart.Size = Vector3.new(HeadSize, HeadSize, HeadSize)
+                    humanoidRootPart.Transparency = TransparencyValue
+                    humanoidRootPart.BrickColor = BrickColor.new("White")  -- Set to white
+                    humanoidRootPart.Material = Enum.Material.Neon
+                    humanoidRootPart.CanCollide = false
+                end
+            end
+        end
+    end
+end)
